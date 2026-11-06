@@ -12,10 +12,9 @@
     button, input { font:inherit; }
     button { cursor:pointer; }
     .app { width:min(100%, 860px); margin:0 auto; padding:28px 20px 48px; }
-    header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding-bottom:28px; border-bottom:1px solid var(--line); }
+    header { padding-bottom:28px; border-bottom:1px solid var(--line); }
     .eyebrow { margin:0 0 7px; color:var(--muted); font:700 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.12em; }
     h1 { margin:0; font-size:clamp(24px, 5vw, 36px); letter-spacing:-.055em; }
-    .date { color:var(--muted); font:600 12px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; text-align:right; }
     .count { margin:38px 0 28px; }
     .count strong { display:block; font-size:clamp(82px, 20vw, 142px); font-weight:750; letter-spacing:-.105em; line-height:.76; }
     .count span { display:block; margin:13px 0 0 3px; color:var(--muted); font:700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.08em; }
@@ -31,13 +30,25 @@
     .status small { display:block; margin-top:5px; color:var(--muted); font-size:12px; font-weight:600; }
     .status.ok { color:var(--ok); }
     .status.warn { color:var(--warn); }
+    .confirm { margin-top:15px; padding:18px; border:1px solid #424242; background:#070707; text-align:center; }
+    .confirm[hidden] { display:none; }
+    .confirm p { margin:0; color:#aaa; font:700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.08em; }
+    .confirm strong { display:block; margin:8px 0 18px; color:var(--text); font-size:31px; letter-spacing:.04em; }
+    .confirm-actions { display:grid; grid-template-columns:1fr 92px; gap:9px; }
+    .confirm-actions button { height:46px; border-radius:0; font-weight:800; }
+    .pay { border:1px solid var(--ok); background:var(--ok); color:#0c0c0c; }
+    .cancel { border:1px solid #484848; background:transparent; color:#d5d5d5; }
     .history-head { display:flex; align-items:center; justify-content:space-between; margin:40px 0 11px; }
     h2 { margin:0; font:700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.08em; color:#bcbcbc; }
     .clear { padding:0; border:0; background:transparent; color:#777; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
     .clear:hover { color:#eee; }
-    .history { border-top:1px solid var(--line); }
-    .record { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:50px; border-bottom:1px solid var(--line); font:700 14px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .history { max-height:390px; overflow:auto; border-top:1px solid var(--line); }
+    .record { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:54px; border-bottom:1px solid var(--line); font:700 14px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
     .record span { color:var(--muted); font-size:12px; font-weight:600; }
+    .record-main, .record-actions { display:flex; align-items:center; gap:10px; }
+    .admin-tag { color:var(--ok) !important; font-size:10px !important; letter-spacing:.06em; }
+    .remove { border:0; border-left:1px solid var(--line); padding:4px 0 4px 10px; background:transparent; color:#8c8c8c; font-size:11px; text-decoration:underline; text-underline-offset:3px; }
+    .remove:hover { color:#fff; }
     .empty { padding:20px 0; color:#777; border-bottom:1px solid var(--line); font-size:13px; }
     .notice { margin:28px 0 0; color:#6e6e6e; font-size:12px; line-height:1.55; }
     @media (max-width:560px) { .app { padding:21px 16px 38px; } header { padding-bottom:25px; } .count { margin:34px 0 25px; } .entry { padding:15px; } .form-row { grid-template-columns:1fr; } .check { width:100%; } }
@@ -46,8 +57,7 @@
 <body>
   <main class="app">
     <header>
-      <div><p class="eyebrow">FESTIVAL / ENTRY CHECK</p><h1>한 번만 입장</h1></div>
-      <div class="date" id="today"></div>
+      <div><p class="eyebrow">FESTIVAL / ENTRY CHECK</p><h1>학번 확인</h1></div>
     </header>
 
     <section class="count" aria-label="오늘 입장 처리 인원"><strong id="total">0</strong><span>CHECKED IN TODAY</span></section>
@@ -58,7 +68,11 @@
         <input id="studentId" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="예: 1101" aria-describedby="status" autofocus />
         <button class="check" type="submit">입장 확인</button>
       </form>
-        <div id="status" class="status" aria-live="polite">학번을 입력해 주세요.<small>학년·반·번호 형식의 4자리 숫자만 가능합니다. 예: 1101</small></div>
+      <div id="confirm" class="confirm" hidden aria-live="polite">
+        <p id="confirmLabel">학번</p><strong id="confirmId"></strong>
+        <div class="confirm-actions"><button id="confirmEntry" class="pay" type="button">코인 지불 확인</button><button id="cancelEntry" class="cancel" type="button">취소</button></div>
+      </div>
+      <div id="status" class="status" aria-live="polite">학번을 입력해 주세요.<small>학년·반·번호 형식의 4자리 숫자만 가능합니다. 예: 1101</small></div>
     </section>
 
     <section aria-label="최근 입장 기록">
@@ -76,10 +90,13 @@
     const status = $('#status');
     const total = $('#total');
     const history = $('#history');
-    const today = $('#today');
+    const confirmBox = $('#confirm');
+    const confirmLabel = $('#confirmLabel');
+    const confirmId = $('#confirmId');
+    const confirmEntry = $('#confirmEntry');
+    const cancelEntry = $('#cancelEntry');
     const stamp = new Date();
     const dayKey = `${stamp.getFullYear()}-${String(stamp.getMonth()+1).padStart(2,'0')}-${String(stamp.getDate()).padStart(2,'0')}`;
-    today.textContent = `${dayKey}\nENTRY DESK`;
 
     function load() {
       try {
@@ -89,29 +106,52 @@
     }
     let entries = load();
     function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ day:dayKey, entries })); }
-    function mask(id) { return id.length <= 4 ? id : `${id.slice(0, 3)}${'•'.repeat(Math.max(2, id.length - 5))}${id.slice(-2)}`; }
-    function timeText(iso) { return new Intl.DateTimeFormat('ko-KR', { hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date(iso)); }
+    let pending = null;
+    function timeText(iso) { return new Intl.DateTimeFormat('ko-KR', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false }).format(new Date(iso)); }
     function render() {
       total.textContent = entries.length;
       if (!entries.length) { history.innerHTML = '<div class="empty">아직 입장 기록이 없습니다.</div>'; return; }
-      history.innerHTML = entries.slice(-7).reverse().map(entry => `<div class="record"><b>${mask(entry.id)}</b><span>${timeText(entry.at)}</span></div>`).join('');
+      history.innerHTML = entries.slice().reverse().map(entry => `<div class="record"><div class="record-main"><b>${entry.id}</b>${entry.kind === 'admin' ? '<span class="admin-tag">관리자</span>' : ''}</div><div class="record-actions"><span>${timeText(entry.at)}</span><button class="remove" type="button" data-at="${entry.at}" aria-label="${entry.id} 기록 삭제">삭제</button></div></div>`).join('');
     }
     function show(type, message, detail) {
       status.className = `status ${type}`;
       status.innerHTML = `${message}<small>${detail}</small>`;
     }
+    function openConfirm(id, kind) {
+      pending = { id, kind };
+      confirmLabel.textContent = kind === 'admin' ? '관리자 계정 · 무제한 입장' : '학번';
+      confirmId.textContent = id;
+      confirmEntry.textContent = kind === 'admin' ? '입장 처리' : '코인 지불 확인';
+      confirmBox.hidden = false;
+      studentId.disabled = true;
+      $('.check').disabled = true;
+      show('', kind === 'admin' ? '관리자 계정입니다.' : '코인 지불을 확인해 주세요.', kind === 'admin' ? '관리자 계정은 횟수 제한 없이 입장할 수 있습니다.' : '확인 전에는 입장 기록이 저장되지 않습니다.');
+    }
+    function closeConfirm(message = '학번을 입력해 주세요.', detail = '학년·반·번호 형식의 4자리 숫자만 가능합니다. 예: 1101') {
+      pending = null; confirmBox.hidden = true; studentId.disabled = false; $('.check').disabled = false; studentId.value = ''; show('', message, detail); studentId.focus();
+    }
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const id = studentId.value.trim();
-      if (!/^[1-3][1-9](0[1-9]|[1-9]\d)$/.test(id)) { show('warn', '잘못된 번호입니다.', '학년·반·번호 형식의 4자리 숫자를 입력해 주세요. 예: 1101'); studentId.focus(); return; }
+      const isAdmin = /^14\d{2}$/.test(id);
+      if (!isAdmin && !/^[1-3][1-9](0[1-9]|[1-9]\d)$/.test(id)) { show('warn', '잘못된 번호입니다.', '학년·반·번호 형식의 4자리 숫자를 입력해 주세요. 예: 1101'); studentId.focus(); return; }
       const registered = entries.find(entry => entry.id === id);
-      if (registered) { show('warn', '이미 입장 처리된 학번입니다.', `첫 입장 처리: ${timeText(registered.at)}`); studentId.select(); return; }
-      entries.push({ id, at:new Date().toISOString() });
-      save(); render();
-      show('ok', '입장 처리되었습니다.', `${mask(id)} · ${timeText(entries.at(-1).at)}`);
-      studentId.value = ''; studentId.focus();
+      if (!isAdmin && registered) { show('warn', '이미 입장 처리된 학번입니다.', `첫 입장 처리: ${timeText(registered.at)}`); studentId.select(); return; }
+      openConfirm(id, isAdmin ? 'admin' : 'student');
     });
     studentId.addEventListener('input', () => { studentId.value = studentId.value.replace(/\D/g, ''); });
+    confirmEntry.addEventListener('click', () => {
+      if (!pending) return;
+      entries.push({ id:pending.id, kind:pending.kind, at:new Date().toISOString() }); save(); render();
+      const completed = pending;
+      closeConfirm(completed.kind === 'admin' ? '관리자 입장 처리되었습니다.' : '코인 지불이 확인되었습니다.', `${completed.id} · ${timeText(entries.at(-1).at)}`);
+    });
+    cancelEntry.addEventListener('click', () => closeConfirm('입장 기록을 만들지 않았습니다.', '학번을 다시 입력해 주세요.'));
+    history.addEventListener('click', (event) => {
+      const button = event.target.closest('.remove');
+      if (!button) return;
+      entries = entries.filter(entry => entry.at !== button.dataset.at); save(); render(); show('', '입장 기록을 삭제했습니다.', '삭제한 학번은 다시 입장 처리할 수 있습니다.');
+    });
     $('#clear').addEventListener('click', () => {
       if (!entries.length) return;
       if (!confirm('오늘 기록을 모두 초기화할까요?')) return;
