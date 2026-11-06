@@ -48,14 +48,14 @@ function parseStudentId(value) {
 
 async function start() {
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS entry_records (
+    CREATE TABLE IF NOT EXISTS festival_entry_records (
       id BIGSERIAL PRIMARY KEY,
       student_id VARCHAR(4) NOT NULL,
       entry_type VARCHAR(10) NOT NULL CHECK (entry_type IN ('student', 'admin')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS one_student_entry_per_day
-      ON entry_records (student_id) WHERE entry_type = 'student';
+    CREATE UNIQUE INDEX IF NOT EXISTS festival_one_student_entry
+      ON festival_entry_records (student_id) WHERE entry_type = 'student';
   `);
 
   app.get('/api/session', (request, response) => response.json({ active: hasSession(request) }));
@@ -69,22 +69,22 @@ async function start() {
     const parsed = parseStudentId(request.body?.studentId);
     if (!parsed) return response.status(422).json({ message: '비정상적 코드입니다.' });
     if (parsed.type === 'admin') return response.json({ ...parsed, available: true });
-    const { rows } = await pool.query('SELECT created_at FROM entry_records WHERE student_id = $1 AND entry_type = $2 LIMIT 1', [parsed.id, 'student']);
+    const { rows } = await pool.query('SELECT created_at FROM festival_entry_records WHERE student_id = $1 AND entry_type = $2 LIMIT 1', [parsed.id, 'student']);
     response.json({ ...parsed, available: rows.length === 0, firstAt: rows[0]?.created_at || null });
   });
   app.get('/api/entries', requireSession, async (_request, response) => {
-    const { rows } = await pool.query('SELECT id, student_id, entry_type, created_at FROM entry_records ORDER BY created_at DESC LIMIT 300');
+    const { rows } = await pool.query('SELECT id, student_id, entry_type, created_at FROM festival_entry_records ORDER BY created_at DESC LIMIT 300');
     response.json({ entries: rows });
   });
   app.post('/api/entries', requireSession, async (request, response) => {
     const parsed = parseStudentId(request.body?.studentId);
     if (!parsed) return response.status(422).json({ message: '비정상적 코드입니다.' });
     try {
-      const { rows } = await pool.query('INSERT INTO entry_records (student_id, entry_type) VALUES ($1, $2) RETURNING id, student_id, entry_type, created_at', [parsed.id, parsed.type]);
+      const { rows } = await pool.query('INSERT INTO festival_entry_records (student_id, entry_type) VALUES ($1, $2) RETURNING id, student_id, entry_type, created_at', [parsed.id, parsed.type]);
       response.status(201).json({ entry: rows[0] });
     } catch (error) {
       if (error.code === '23505') {
-        const { rows } = await pool.query('SELECT created_at FROM entry_records WHERE student_id = $1 AND entry_type = $2 LIMIT 1', [parsed.id, 'student']);
+        const { rows } = await pool.query('SELECT created_at FROM festival_entry_records WHERE student_id = $1 AND entry_type = $2 LIMIT 1', [parsed.id, 'student']);
         return response.status(409).json({ message: '이미 입장한 학번입니다.', firstAt: rows[0]?.created_at || null });
       }
       throw error;
@@ -92,12 +92,12 @@ async function start() {
   });
   app.delete('/api/entries/:id', requireSession, async (request, response) => {
     if (!equalCode(request.body?.code)) return response.status(403).json({ message: '관리자 코드가 올바르지 않습니다.' });
-    await pool.query('DELETE FROM entry_records WHERE id = $1', [request.params.id]);
+    await pool.query('DELETE FROM festival_entry_records WHERE id = $1', [request.params.id]);
     response.json({ deleted: true });
   });
   app.delete('/api/entries', requireSession, async (request, response) => {
     if (!equalCode(request.body?.code)) return response.status(403).json({ message: '관리자 코드가 올바르지 않습니다.' });
-    await pool.query('DELETE FROM entry_records');
+    await pool.query('DELETE FROM festival_entry_records');
     response.json({ cleared: true });
   });
   app.use(express.static(path.join(__dirname, 'dist')));
