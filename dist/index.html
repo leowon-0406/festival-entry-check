@@ -10,6 +10,13 @@
   </style>
 </head>
 <body>
+  <script>
+    // The previous static-site addresses remain available as a friendly entry point.
+    // Send them to the web service before any API call or operator-code entry.
+    if (['festival-entry-check.onrender.com', 'festival-entry-gate.onrender.com'].includes(location.hostname)) {
+      location.replace(`https://festival-entry-server.onrender.com${location.pathname}${location.search}${location.hash}`);
+    }
+  </script>
   <section id="gate" class="screen"><form id="gateForm" class="dialog-card"><p class="eyebrow">FESTIVAL / OPERATOR</p><h1>운영 코드</h1><label for="gateCode">코드 입력</label><input id="gateCode" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="4자리 코드" autofocus><button class="check" type="submit">입장 관리 열기</button><div id="gateError" class="dialog-error" aria-live="polite"></div></form></section>
   <main id="app" class="app" hidden>
     <header><p class="eyebrow">FESTIVAL / ENTRY CHECK</p><h1>학번 확인</h1></header>
