@@ -36,5 +36,26 @@
     function openAdmin(action){adminAction=action;adminTitle.textContent=action.type==='clear'?'오늘 기록 초기화':'입장 기록 삭제';adminDescription.textContent=action.type==='clear'?'모든 입장 기록을 삭제합니다.':`${action.studentId} 기록을 삭제합니다.`;adminCode.value='';adminError.textContent='';adminModal.hidden=false;adminCode.focus()}function closeAdmin(){adminAction=null;adminModal.hidden=true}
     gateForm.addEventListener('submit',async event=>{event.preventDefault();gateError.textContent='';try{await api('/api/login',{method:'POST',body:JSON.stringify({code:gateCode.value})});gate.hidden=true;app.hidden=false;await loadEntries();studentId.focus()}catch(error){gateError.textContent=error.data?.message||'코드를 확인해 주세요.';gateCode.select()}});form.addEventListener('submit',async event=>{event.preventDefault();const id=studentId.value.trim();try{const result=await api('/api/check',{method:'POST',body:JSON.stringify({studentId:id})});if(!result.available)return openNotice('이미 입장한 학번',id,`첫 입장 처리: ${timeText(result.firstAt)}`);openConfirm(id,result.type)}catch(error){openNotice(error.status===422?'비정상적 코드':'확인 오류',id,error.data?.message||defaultDetail)}});studentId.addEventListener('input',()=>{studentId.value=studentId.value.replace(/\D/g,'')});confirmEntry.addEventListener('click',async()=>{if(!pending)return;if(pending.type==='notice')return closeConfirm();try{const result=await api('/api/entries',{method:'POST',body:JSON.stringify({studentId:pending.id})});await loadEntries();const saved=pending;closeConfirm(saved.type==='admin'?'관리자 입장 처리되었습니다.':'코인 지불이 확인되었습니다.',`${result.entry.student_id} · ${timeText(result.entry.created_at)}`)}catch(error){if(error.status===409)return openNotice('이미 입장한 학번',pending.id,`첫 입장 처리: ${timeText(error.data.firstAt)}`);openNotice('저장 오류',pending.id,error.data?.message||'서버 연결을 확인해 주세요.')}});cancelEntry.addEventListener('click',()=>closeConfirm('입장 기록을 만들지 않았습니다.','학번을 다시 입력해 주세요.'));history.addEventListener('click',event=>{const button=event.target.closest('.remove');if(button){const entry=entries.find(item=>String(item.id)===button.dataset.id);openAdmin({type:'delete',id:button.dataset.id,studentId:entry?.student_id||''})}});$('#clear').addEventListener('click',()=>{if(entries.length)openAdmin({type:'clear'})});$('#adminCancel').addEventListener('click',closeAdmin);adminForm.addEventListener('submit',async event=>{event.preventDefault();const action=adminAction;try{if(action.type==='clear')await api('/api/entries',{method:'DELETE',body:JSON.stringify({code:adminCode.value})});else await api(`/api/entries/${action.id}`,{method:'DELETE',body:JSON.stringify({code:adminCode.value})});closeAdmin();await loadEntries();show('',action.type==='clear'?'오늘 기록을 초기화했습니다.':'입장 기록을 삭제했습니다.','관리자 코드로 처리되었습니다.')}catch(error){adminError.textContent=error.data?.message||'처리할 수 없습니다.';adminCode.select()}});(async()=>{try{const session=await api('/api/session');if(session.active){gate.hidden=true;app.hidden=false;await loadEntries();studentId.focus()}}catch{gateError.textContent='서버에 연결할 수 없습니다.'}})();
   </script>
+  <style>
+    .confirm.entry-time strong{font-size:clamp(42px,12vw,56px);line-height:1;color:var(--warn);letter-spacing:-.04em}
+    .confirm.entry-time p{color:var(--warn)}
+  </style>
+  <script>
+    const firstEntryTimeObserver=new MutationObserver(()=>{
+      const detail=status.querySelector('small')?.textContent||'';
+      const firstTime=detail.match(/\b\d{2}:\d{2}:\d{2}\b/)?.[0];
+      const isNewDuplicate=!confirmBox.hidden&&confirmLabel.textContent==='이미 입장한 학번';
+      if(isNewDuplicate&&firstTime){
+        const duplicateId=confirmId.textContent;
+        confirmLabel.textContent=`이미 입장한 학번 · ${duplicateId}`;
+        confirmId.textContent=firstTime;
+        confirmBox.classList.add('entry-time');
+        status.innerHTML='이미 입장한 학번입니다.<small>첫 입장 처리 시간</small>';
+      }else if(!confirmLabel.textContent.startsWith('이미 입장한 학번')){
+        confirmBox.classList.remove('entry-time');
+      }
+    });
+    firstEntryTimeObserver.observe(confirmBox,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['hidden']});
+  </script>
 </body>
 </html>
