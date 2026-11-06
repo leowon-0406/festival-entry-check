@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#050505" />
+  <title>FESTIVAL CHECK</title>
+  <style>
+    :root { color-scheme: dark; --bg:#050505; --panel:#0d0d0d; --line:#262626; --muted:#8f8f8f; --text:#f5f5f5; --ok:#d9ff55; --warn:#ff6c5c; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; min-height:100vh; background:var(--bg); color:var(--text); font-family:Inter, Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input { font:inherit; }
+    button { cursor:pointer; }
+    .app { width:min(100%, 860px); margin:0 auto; padding:28px 20px 48px; }
+    header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding-bottom:28px; border-bottom:1px solid var(--line); }
+    .eyebrow { margin:0 0 7px; color:var(--muted); font:700 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.12em; }
+    h1 { margin:0; font-size:clamp(24px, 5vw, 36px); letter-spacing:-.055em; }
+    .date { color:var(--muted); font:600 12px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; text-align:right; }
+    .count { margin:38px 0 28px; }
+    .count strong { display:block; font-size:clamp(82px, 20vw, 142px); font-weight:750; letter-spacing:-.105em; line-height:.76; }
+    .count span { display:block; margin:13px 0 0 3px; color:var(--muted); font:700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.08em; }
+    .entry { border:1px solid var(--line); background:var(--panel); padding:18px; }
+    label { display:block; margin-bottom:10px; color:#bcbcbc; font:700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.08em; }
+    .form-row { display:grid; grid-template-columns:1fr auto; gap:10px; }
+    input { min-width:0; height:62px; padding:0 17px; border:1px solid #373737; border-radius:0; outline:0; background:#070707; color:var(--text); font-size:24px; font-weight:700; letter-spacing:.045em; }
+    input:focus { border-color:#eee; }
+    input::placeholder { color:#525252; font-size:16px; letter-spacing:0; }
+    .check { min-width:132px; height:62px; border:1px solid var(--text); border-radius:0; background:var(--text); color:#080808; font-weight:800; }
+    .check:active { transform:translateY(1px); }
+    .status { min-height:52px; margin:15px 0 2px; padding:13px 0 0; border-top:1px solid var(--line); font-weight:750; font-size:15px; }
+    .status small { display:block; margin-top:5px; color:var(--muted); font-size:12px; font-weight:600; }
+    .status.ok { color:var(--ok); }
+    .status.warn { color:var(--warn); }
+    .history-head { display:flex; align-items:center; justify-content:space-between; margin:40px 0 11px; }
+    h2 { margin:0; font:700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.08em; color:#bcbcbc; }
+    .clear { padding:0; border:0; background:transparent; color:#777; font-size:12px; text-decoration:underline; text-underline-offset:3px; }
+    .clear:hover { color:#eee; }
+    .history { border-top:1px solid var(--line); }
+    .record { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:50px; border-bottom:1px solid var(--line); font:700 14px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .record span { color:var(--muted); font-size:12px; font-weight:600; }
+    .empty { padding:20px 0; color:#777; border-bottom:1px solid var(--line); font-size:13px; }
+    .notice { margin:28px 0 0; color:#6e6e6e; font-size:12px; line-height:1.55; }
+    @media (max-width:560px) { .app { padding:21px 16px 38px; } header { padding-bottom:25px; } .count { margin:34px 0 25px; } .entry { padding:15px; } .form-row { grid-template-columns:1fr; } .check { width:100%; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div><p class="eyebrow">FESTIVAL / ENTRY CHECK</p><h1>한 번만 입장</h1></div>
+      <div class="date" id="today"></div>
+    </header>
+
+    <section class="count" aria-label="오늘 입장 처리 인원"><strong id="total">0</strong><span>CHECKED IN TODAY</span></section>
+
+    <section class="entry" aria-label="학번 입장 확인">
+      <label for="studentId">학번 입력</label>
+      <form id="checkForm" class="form-row">
+        <input id="studentId" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="숫자만 입력" aria-describedby="status" autofocus />
+        <button class="check" type="submit">입장 확인</button>
+      </form>
+      <div id="status" class="status" aria-live="polite">학번을 입력해 주세요.<small>등록된 학번은 다시 입장할 수 없습니다.</small></div>
+    </section>
+
+    <section aria-label="최근 입장 기록">
+      <div class="history-head"><h2>최근 입장</h2><button id="clear" class="clear" type="button">오늘 기록 초기화</button></div>
+      <div id="history" class="history"></div>
+    </section>
+    <p class="notice">이 기기의 브라우저에만 기록됩니다. 운영 기기를 바꾸거나 브라우저 데이터를 지우면 기록도 초기화됩니다.</p>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'festival-entry-check-v1';
+    const $ = (selector) => document.querySelector(selector);
+    const form = $('#checkForm');
+    const studentId = $('#studentId');
+    const status = $('#status');
+    const total = $('#total');
+    const history = $('#history');
+    const today = $('#today');
+    const stamp = new Date();
+    const dayKey = `${stamp.getFullYear()}-${String(stamp.getMonth()+1).padStart(2,'0')}-${String(stamp.getDate()).padStart(2,'0')}`;
+    today.textContent = `${dayKey}\nENTRY DESK`;
+
+    function load() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        return saved.day === dayKey && Array.isArray(saved.entries) ? saved.entries : [];
+      } catch { return []; }
+    }
+    let entries = load();
+    function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify({ day:dayKey, entries })); }
+    function mask(id) { return id.length <= 4 ? id : `${id.slice(0, 3)}${'•'.repeat(Math.max(2, id.length - 5))}${id.slice(-2)}`; }
+    function timeText(iso) { return new Intl.DateTimeFormat('ko-KR', { hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date(iso)); }
+    function render() {
+      total.textContent = entries.length;
+      if (!entries.length) { history.innerHTML = '<div class="empty">아직 입장 기록이 없습니다.</div>'; return; }
+      history.innerHTML = entries.slice(-7).reverse().map(entry => `<div class="record"><b>${mask(entry.id)}</b><span>${timeText(entry.at)}</span></div>`).join('');
+    }
+    function show(type, message, detail) {
+      status.className = `status ${type}`;
+      status.innerHTML = `${message}<small>${detail}</small>`;
+    }
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const id = studentId.value.trim();
+      if (!/^\d{4,12}$/.test(id)) { show('warn', '학번을 숫자로 정확히 입력해 주세요.', '4~12자리 숫자만 가능합니다.'); studentId.focus(); return; }
+      const registered = entries.find(entry => entry.id === id);
+      if (registered) { show('warn', '이미 입장 처리된 학번입니다.', `첫 입장 처리: ${timeText(registered.at)}`); studentId.select(); return; }
+      entries.push({ id, at:new Date().toISOString() });
+      save(); render();
+      show('ok', '입장 처리되었습니다.', `${mask(id)} · ${timeText(entries.at(-1).at)}`);
+      studentId.value = ''; studentId.focus();
+    });
+    studentId.addEventListener('input', () => { studentId.value = studentId.value.replace(/\D/g, ''); });
+    $('#clear').addEventListener('click', () => {
+      if (!entries.length) return;
+      if (!confirm('오늘 기록을 모두 초기화할까요?')) return;
+      entries = []; save(); render(); show('', '오늘 기록을 초기화했습니다.', '새로운 학번부터 다시 입장 처리할 수 있습니다.'); studentId.focus();
+    });
+    render();
+  </script>
+</body>
+</html>
